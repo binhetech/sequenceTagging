@@ -4,6 +4,6 @@ glove:
 	rm ./data/glove.6B.zip
 
 run:
-	python build_data.py
-	python train.py
-	python evaluate.py
+	python3 build_data.py
+	python3 train.py
+	python3 evaluate.py

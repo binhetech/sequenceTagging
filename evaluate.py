@@ -1,6 +1,7 @@
-from model.data_utils import CoNLLDataset
-from model.ner_model import NERModel
+from model.data_utils import Dataset
+from model.ner_model import TaggingModel
 from model.config import Config
+from nltk import sent_tokenize
 
 
 def align_data(data):
@@ -32,8 +33,7 @@ def align_data(data):
     return data_aligned
 
 
-
-def interactive_shell(model):
+def interactive_shell(model, config):
     """Creates interactive shell to play with model
 
     Args:
@@ -47,20 +47,19 @@ You can enter a sentence like
 input> I love Paris""")
 
     while True:
-        try:
-            # for python 2
-            sentence = raw_input("input> ")
-        except NameError:
-            # for python 3
-            sentence = input("input> ")
+        sentence = input("input> ")
+        if config.tokenLevel == 2:
+            # sentence
+            tokensRaw = sent_tokenize(sentence.strip())
+        else:
+            # word
+            tokensRaw = sentence.strip().split()
 
-        words_raw = sentence.strip().split(" ")
-
-        if words_raw == ["exit"]:
+        if tokensRaw == ["exit"]:
             break
 
-        preds = model.predict(words_raw)
-        to_print = align_data({"input": words_raw, "output": preds})
+        preds = model.predict(tokensRaw)
+        to_print = align_data({"input": tokensRaw, "output": preds})
 
         for key, seq in to_print.items():
             model.logger.info(seq)
@@ -71,17 +70,17 @@ def main():
     config = Config()
 
     # build model
-    model = NERModel(config)
+    model = TaggingModel(config)
     model.build()
     model.restore_session(config.dir_model)
 
     # create dataset
-    test  = CoNLLDataset(config.filename_test, config.processing_word,
-                         config.processing_tag, config.max_iter)
+    test = Dataset(config.filename_test, config.processing_word, config.processing_tag, config.max_iter, sep=config.sep,
+                   tokenLevel=config.tokenLevel)
 
     # evaluate and interact
     model.evaluate(test)
-    interactive_shell(model)
+    interactive_shell(model, config)
 
 
 if __name__ == "__main__":
