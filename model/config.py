@@ -57,12 +57,12 @@ class Config():
     # embeddings
     dim_word = 300
     dim_char = 100
-    dim_sentence = 900
+    dim_sentence = 300
 
     # glove files
-    filename_glove = "data/glove.6B/glove.6B.{}d.txt".format(dim_word)
+    filename_glove = "data/glove.840B/glove.840B.{}d.txt".format(dim_word)
     # trimmed embeddings (created from glove_filename with build_data.py)
-    filename_trimmed = "data/glove.6B.{}d.trimmed.npz".format(dim_word)
+    filename_trimmed = "data/glove.840B/glove.840B.{}d.trimmed.npz".format(dim_word)
     use_pretrained = True
 
     # dataset
@@ -81,19 +81,19 @@ class Config():
 
     # training
     train_embeddings = False
-    nepochs = 100
+    nepochs = 30
     batch_size = 64
     dropout = 0.5
     lr_method = "adam"
     lr = 0.001
     lr_decay = 0.9
     clip = -1  # if negative, no clipping
-    nepoch_no_imprv = 10
+    nepoch_no_imprv = 5
     restore = False  # restore from saved session
 
     # model hyperparameters
     hidden_size_char = 100  # lstm on chars
-    hidden_size_sentence = 900  # lstm on sentences
+    hidden_size_sentence = 300  # lstm on sentences
     hidden_size_lstm = 300  # lstm on word embeddings
 
     # NOTE: if both chars and crf, only 1.6x slower on GPU

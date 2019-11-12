@@ -381,7 +381,7 @@ class TaggingModel(BaseModel):
             preds: list of tags (string), one for each word in the sentence
 
         """
-        words = [self.config.processing_word(w) for w in words_raw]
+        words = [self.config.processing_word(w, idw) for idw, w in enumerate(words_raw)]
         if type(words[0]) == tuple:
             words = zip(*words)
         pred_ids, _ = self.predict_batch([words])
