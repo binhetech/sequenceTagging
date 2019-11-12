@@ -78,9 +78,11 @@ class Dataset(object):
         niter = 0
         with open(self.filename) as f:
             tokens, tags = [], []
+            numToken = 0
             for line in f:
                 line = line.strip()
                 if (len(line) == 0 or line.startswith("-DOCSTART-")):
+                    numToken = 0
                     # 空行分隔， tokens -> sequence
                     if len(tokens) != 0:
                         niter += 1
@@ -90,15 +92,16 @@ class Dataset(object):
                         yield tokens, tags
                         tokens, tags = [], []
                 else:
+                    numToken += 1
                     ls = line.split(self.sep)
                     if len(ls) != 2:
                         ls = line.split()
                     token, tag = ls[0], ls[1]
                     if self.processing_word is not None:
                         # return list of word id
-                        token = self.processing_word(token)
+                        token = self.processing_word(token, numToken)
                     if self.processing_tag is not None:
-                        tag = self.processing_tag(tag)
+                        tag = self.processing_tag(tag, -1)
                     tokens += [token]
                     tags += [tag]
 
@@ -272,12 +275,12 @@ def get_processing_word(vocab_words=None, vocab_chars=None, lowercase=False, tok
         f("cat") = ([12, 4, 32], 12345)
                  = word id
                  = (list of char ids, word id)
-                 = (list of word ids, sentence id)
+                 = (list of word ids, sentence relative location id)
 
     """
 
     # map function
-    def f(token):
+    def f(token, idt):
         # 0. get chars of words
         if vocab_chars is not None and tokenLevel == 0:
             char_ids = []
@@ -287,7 +290,6 @@ def get_processing_word(vocab_words=None, vocab_chars=None, lowercase=False, tok
                     char_ids += [vocab_chars[char]]
         # 1. get words of sentence
         elif tokenLevel == 2:
-
             sentence_ids = []
             for word in word_tokenize(token):
                 # ignore chars out of vocabulary
@@ -321,7 +323,7 @@ def get_processing_word(vocab_words=None, vocab_chars=None, lowercase=False, tok
             return char_ids, token
         elif tokenLevel == 2:
             # (list of word ids, UNK id)
-            return sentence_ids, token
+            return sentence_ids, idt
         else:
             # word id
             return token
@@ -375,8 +377,17 @@ def pad_sequences(sequences, pad_tok, nlevels=1):
         sequence_length, _ = _pad_sequences(sequence_length, 0, max_length_sentence)
     elif nlevels == 2:
         # sentence embedding
-        max_length = max([max(map(lambda x: len(x), seq)) for seq in sequences])
-        sequence_padded, sequence_length = _pad_sequences(sequences, pad_tok, max_length)
+        max_length_word = max([max(map(lambda x: len(x), seq)) for seq in sequences])
+        sequence_padded, sequence_length = [], []
+        for seq in sequences:
+            # all words are same length now
+            sp, sl = _pad_sequences(seq, pad_tok, max_length_word)
+            sequence_padded += [sp]
+            sequence_length += [sl]
+
+        max_length_sentence = max(map(lambda x: len(x), sequences))
+        sequence_padded, _ = _pad_sequences(sequence_padded, [pad_tok] * max_length_word, max_length_sentence)
+        sequence_length, _ = _pad_sequences(sequence_length, 0, max_length_sentence)
     else:
         # word embedding
         max_length = max(map(lambda x: len(x), sequences))
@@ -402,11 +413,8 @@ def minibatches(data, minibatch_size):
             x_batch, y_batch = [], []
 
         if type(x[0]) == tuple:
-            # char embedding
+            # char embedding, sentence embedding
             x = zip(*x)
-        elif type(x[0]) == list:
-            # sentence embedding
-            x = x
         x_batch += [x]
         y_batch += [y]
 

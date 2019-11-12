@@ -11,8 +11,9 @@ def main():
     model = TaggingModel(config)
     model.build()
     # init from stored weights
-    model.restore_session(config.dir_model)  # optional, restore weights
-    model.reinitialize_weights("proj")
+    if config.restore:
+        model.restore_session(config.dir_model)  # optional, restore weights
+        model.reinitialize_weights("proj")
 
     # create data sets
     dev = Dataset(config.filename_dev, config.processing_word, config.processing_tag, config.max_iter, sep=config.sep,

@@ -1,5 +1,5 @@
 from model.data_utils import Dataset
-from model.ner_model import TaggingModel
+from model.tagging_model import TaggingModel
 from model.config import Config
 from nltk import sent_tokenize
 
@@ -40,11 +40,10 @@ def interactive_shell(model, config):
         model: instance of NERModel
 
     """
-    model.logger.info("""
-This is an interactive mode.
-To exit, enter 'exit'.
-You can enter a sentence like
-input> I love Paris""")
+    model.logger.info("""This is an interactive mode.
+    To exit, enter 'exit'.
+    You can enter a sentence like
+    input> I love Paris""")
 
     while True:
         sentence = input("input> ")

@@ -51,7 +51,7 @@ class Config():
 
     # general config
     dir_output = "results/test/"
-    dir_model = dir_output + "model.weights/"
+    dir_model = dir_output + "model/"
     path_log = dir_output + "log.txt"
 
     # embeddings
@@ -66,9 +66,9 @@ class Config():
     use_pretrained = True
 
     # dataset
-    filename_dev = "data/discourse/dev-sent.csv"
-    filename_test = "data/discourse/test-sent.csv"
     filename_train = "data/discourse/train-sent.csv"
+    filename_test = "data/discourse/test-sent.csv"
+    filename_dev = "data/discourse/dev-sent.csv"
 
     # filename_dev = filename_test = filename_train = "data/test.txt" # test
 
@@ -81,14 +81,15 @@ class Config():
 
     # training
     train_embeddings = False
-    nepochs = 300
+    nepochs = 100
+    batch_size = 64
     dropout = 0.5
-    batch_size = 32
     lr_method = "adam"
     lr = 0.001
     lr_decay = 0.9
     clip = -1  # if negative, no clipping
-    nepoch_no_imprv = 20
+    nepoch_no_imprv = 10
+    restore = False  # restore from saved session
 
     # model hyperparameters
     hidden_size_char = 100  # lstm on chars

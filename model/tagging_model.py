@@ -69,7 +69,7 @@ class TaggingModel(BaseModel):
             # sentence embedding
             sentence_ids, word_ids = zip(*samples)
             word_ids, sequence_lengths = pad_sequences(word_ids, 0)
-            sentence_ids, sentence_lengths = pad_sequences(sentence_ids, pad_tok=0, nlevels=0)
+            sentence_ids, sentence_lengths = pad_sequences(sentence_ids, pad_tok=0, nlevels=2)
         else:
             # word embedding
             word_ids, sequence_lengths = pad_sequences(samples, 0)
@@ -80,7 +80,8 @@ class TaggingModel(BaseModel):
             self.sequence_lengths: sequence_lengths
         }
 
-        # print("feed word_ids={}\nfeed sequence_lengths={}".format(word_ids, sequence_lengths))
+        # print("--word_ids={}\n--sequence_lengths={}\n".format(word_ids, sequence_lengths))
+        # print("--sentence_ids={}\n--sentence_lengths={}".format(sentence_ids, sentence_lengths))
 
         if self.config.tokenLevel == 0:
             feed[self.char_ids] = char_ids
@@ -110,20 +111,29 @@ class TaggingModel(BaseModel):
         the correct shape is initialized.
         """
         with tf.variable_scope("words"):
-            if self.config.embeddings is None:
-                self.logger.info("WARNING: randomly initializing word vectors")
+            if self.config.tokenLevel in [0, 1]:
+                if self.config.embeddings is None:
+                    self.logger.info("WARNING: randomly initializing word vectors")
+                    _word_embeddings = tf.get_variable(
+                        name="_word_embeddings",
+                        dtype=tf.float32,
+                        shape=[self.config.nwords, self.config.dim_word])
+                else:
+                    _word_embeddings = tf.Variable(
+                        self.config.embeddings,
+                        name="_word_embeddings",
+                        dtype=tf.float32,
+                        trainable=self.config.train_embeddings)
+
+                word_embeddings = tf.nn.embedding_lookup(_word_embeddings, self.word_ids, name="word_embeddings")
+            elif self.config.tokenLevel == 2:
+                # word_ids: sentence relative location ids
+                self.logger.info("WARNING: randomly initializing sentence relative location vectors")
                 _word_embeddings = tf.get_variable(
                     name="_word_embeddings",
                     dtype=tf.float32,
-                    shape=[self.config.nwords, self.config.dim_word])
-            else:
-                _word_embeddings = tf.Variable(
-                    self.config.embeddings,
-                    name="_word_embeddings",
-                    dtype=tf.float32,
-                    trainable=self.config.train_embeddings)
-
-            word_embeddings = tf.nn.embedding_lookup(_word_embeddings, self.word_ids, name="word_embeddings")
+                    shape=[self.config.nwords, self.config.dim_char])
+                word_embeddings = tf.nn.embedding_lookup(_word_embeddings, self.word_ids, name="word_embeddings")
 
         with tf.variable_scope("chars"):
             if self.config.tokenLevel == 0:
@@ -163,11 +173,13 @@ class TaggingModel(BaseModel):
                     name="_sentence_embeddings",
                     dtype=tf.float32,
                     shape=[self.config.nwords, self.config.dim_sentence])
-                sentence_embeddings = tf.nn.embedding_lookup(_sentence_embeddings, self.sentence_ids, name="sentence_embeddings")
+                sentence_embeddings = tf.nn.embedding_lookup(_sentence_embeddings, self.sentence_ids,
+                                                             name="sentence_embeddings")
 
                 # put the time dimension on axis=1
                 s = tf.shape(sentence_embeddings)
-                sentence_embeddings = tf.reshape(sentence_embeddings, shape=[s[0] * s[1], s[-2], self.config.dim_sentence])
+                sentence_embeddings = tf.reshape(sentence_embeddings,
+                                                 shape=[s[0] * s[1], s[-2], self.config.dim_sentence])
                 sentence_lengths = tf.reshape(self.sentence_lengths, shape=[s[0] * s[1]])
 
                 # bi lstm on sentence
@@ -175,15 +187,14 @@ class TaggingModel(BaseModel):
                                                   state_is_tuple=True)
                 cell_bw = tf.contrib.rnn.LSTMCell(self.config.hidden_size_sentence,
                                                   state_is_tuple=True)
-                _output = tf.nn.bidirectional_dynamic_rnn(
-                    cell_fw, cell_bw, sentence_embeddings,
-                    sequence_length=sentence_lengths, dtype=tf.float32)
+                _output = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, sentence_embeddings,
+                                                          sequence_length=sentence_lengths, dtype=tf.float32)
 
                 # read and concat output
                 _, ((_, output_fw), (_, output_bw)) = _output
                 output = tf.concat([output_fw, output_bw], axis=-1)
 
-                # shape = (batch size, max sentence length, char hidden size)
+                # shape = (batch size, max sentence length, sentence hidden size)
                 output = tf.reshape(output, shape=[s[0], s[1], 2 * self.config.hidden_size_sentence])
                 word_embeddings = tf.concat([word_embeddings, output], axis=-1)
 
@@ -202,6 +213,7 @@ class TaggingModel(BaseModel):
                                                                         sequence_length=self.sequence_lengths,
                                                                         dtype=tf.float32)
             output = tf.concat([output_fw, output_bw], axis=-1)
+            # drop out
             output = tf.nn.dropout(output, self.dropout)
 
         with tf.variable_scope("proj"):
