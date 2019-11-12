@@ -168,11 +168,13 @@ class TaggingModel(BaseModel):
 
         with tf.variable_scope("sentences"):
             if self.config.tokenLevel == 2:
-                # get sentence embeddings matrix
-                _sentence_embeddings = tf.get_variable(
+                # get sentence embeddings matrix from word embedding
+                _sentence_embeddings = tf.Variable(
+                    self.config.embeddings,
                     name="_sentence_embeddings",
                     dtype=tf.float32,
-                    shape=[self.config.nwords, self.config.dim_sentence])
+                    trainable=self.config.train_embeddings)
+
                 sentence_embeddings = tf.nn.embedding_lookup(_sentence_embeddings, self.sentence_ids,
                                                              name="sentence_embeddings")
 
