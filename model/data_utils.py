@@ -42,7 +42,7 @@ class Dataset(object):
     Example:
         ```python
         data = Dataset(filename)
-        for sentence, tags in data:
+        for tokens, tags in data:
             pass
         ```
 
@@ -72,7 +72,7 @@ class Dataset(object):
         Return: words, tags:
             - tokenLevel=0: words=[((1, 43, 78), 425), ...], tags=[B_PER, ...]
             - tokenLevel=1: words=[425, 498, ...],           tags=[B_PER, ...]
-            - tokenLevel=2: words=[[425, 498], ...],         tags=[B_PER, ...]
+            - tokenLevel=2: words=[((1, 43, 78), 1), ...],   tags=[B_PER, ...]
 
         """
         niter = 0
@@ -126,11 +126,16 @@ def get_vocabs(datasets):
         a set of all the words in the dataset
 
     """
-    print("Building vocab...")
+    print("Building vocab from (train, dev, test) files...")
     vocab_words = set()
     vocab_tags = set()
     for dataset in datasets:
         for words, tags in dataset:
+            if dataset.tokenLevel == 2:
+                w = []
+                for i in words:
+                    w += word_tokenize(i.lower())
+                words = w
             vocab_words.update(words)
             vocab_tags.update(tags)
     print("- done. {} tokens".format(len(vocab_words)))
@@ -164,7 +169,7 @@ def get_glove_vocab(filename):
     Returns:
         vocab: set() of strings
     """
-    print("Building vocab...")
+    print("Building vocab from GloVe...")
     vocab = set()
     with open(filename) as f:
         for line in f:
@@ -174,7 +179,7 @@ def get_glove_vocab(filename):
     return vocab
 
 
-def write_vocab(vocab, filename):
+def write_vocab(vocab, filename, prompt):
     """Writes a vocab to a file
 
     Writes one word per line.
@@ -187,7 +192,7 @@ def write_vocab(vocab, filename):
         write a word per line
 
     """
-    print("Writing vocab...")
+    print("Writing {} vocab...".format(prompt))
     with open(filename, "w") as f:
         for i, word in enumerate(vocab):
             if i != len(vocab) - 1:
@@ -259,7 +264,7 @@ def get_trimmed_glove_vectors(filename):
         raise MyIOError(filename)
 
 
-def get_processing_word(vocab_words=None, vocab_chars=None, lowercase=False, tokenLevel=1, allow_unk=True):
+def get_processing_word(vocab_words=None, vocab_chars=None, lowercase=True, tokenLevel=1, allow_unk=True):
     """Return lambda function that transform a word (string) into list,
     or tuple of (list, id) of int corresponding to the ids of the word and
     its corresponding characters.
@@ -289,7 +294,7 @@ def get_processing_word(vocab_words=None, vocab_chars=None, lowercase=False, tok
                 if char in vocab_chars:
                     char_ids += [vocab_chars[char]]
         # 1. get words of sentence
-        elif tokenLevel == 2:
+        elif vocab_words is not None and tokenLevel == 2:
             sentence_ids = []
             for word in word_tokenize(token):
                 # ignore chars out of vocabulary
@@ -316,16 +321,19 @@ def get_processing_word(vocab_words=None, vocab_chars=None, lowercase=False, tok
                     token = vocab_words[UNK]
                 else:
                     raise Exception("Unknow key is not allowed. Check that your vocab (tags?) is correct")
+        elif tokenLevel == 2:
+            # build data
+            token = word_tokenize(token)
 
         # 3. return tuple char ids, word id
         if vocab_chars is not None and tokenLevel == 0:
             # (list of char ids, word id)
             return char_ids, token
-        elif tokenLevel == 2:
+        elif vocab_words is not None and tokenLevel == 2:
             # (list of word ids, UNK id)
             return sentence_ids, idt
         else:
-            # word id
+            # word / word id
             return token
 
     return f

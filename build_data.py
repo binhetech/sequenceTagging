@@ -24,9 +24,9 @@ def main():
     processing_word = get_processing_word(lowercase=True)
 
     # Generators
+    train = Dataset(config.filename_train, processing_word, sep=config.sep, tokenLevel=config.tokenLevel)
     dev = Dataset(config.filename_dev, processing_word, sep=config.sep, tokenLevel=config.tokenLevel)
     test = Dataset(config.filename_test, processing_word, sep=config.sep, tokenLevel=config.tokenLevel)
-    train = Dataset(config.filename_train, processing_word, sep=config.sep, tokenLevel=config.tokenLevel)
 
     # Build Word and Tag vocab
     vocab_words, vocab_tags = get_vocabs([train, dev, test])
@@ -37,8 +37,8 @@ def main():
     vocab.add(NUM)
 
     # Save vocab
-    write_vocab(vocab, config.filename_words)
-    write_vocab(vocab_tags, config.filename_tags)
+    write_vocab(vocab, config.filename_words, "words")
+    write_vocab(vocab_tags, config.filename_tags, "tags")
 
     # Trim GloVe Vectors
     vocab = load_vocab(config.filename_words)
@@ -47,7 +47,7 @@ def main():
     # Build and save char vocab
     train = Dataset(config.filename_train, sep=config.sep, tokenLevel=config.tokenLevel)
     vocab_chars = get_char_vocab(train)
-    write_vocab(vocab_chars, config.filename_chars)
+    write_vocab(vocab_chars, config.filename_chars, "chars")
 
 
 if __name__ == "__main__":
